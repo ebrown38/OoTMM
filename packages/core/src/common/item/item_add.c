@@ -1095,6 +1095,23 @@ static int addItemQuestMm(PlayState* play, u8 itemId, s16 gi, u16 param)
     return 0;
 }
 
+static int addItemOotSongForestNote(PlayState* play, u8 itemId, s16 gi, u16 param)
+{
+    gSharedCustomSave.songNotes.oot_song_notes.oot_tp_forest_notes.value |= (1 << param);
+    return 0;
+}
+
+static const u32 OOT_STORMS_NOTES_MASK = 0x3F;
+static int addItemOotSongStormsNote(PlayState* play, u8 itemId, s16 gi, u16 param)
+{
+    gSharedCustomSave.songNotes.oot_song_notes.oot_storms_notes.value |= (1 << param);
+
+    if (gSharedCustomSave.songNotes.oot_song_notes.oot_storms_notes.value == OOT_STORMS_NOTES_MASK) {
+        gOotSave.info.inventory.quest.songStorms = 1;
+    }
+    return 0;
+}
+
 static void addHealthEffect(u8 count)
 {
     gSaveContext.healthDelta += count * 0x10;
@@ -1962,6 +1979,8 @@ static const AddItemFunc kAddItemHandlers[] = {
     addItemStoneAgonyMm,
     addItemSpinUpgradeOot,
     addItemIceTrap,
+    addItemOotSongForestNote,
+    addItemOotSongStormsNote,
 };
 
 extern const u8 kAddItemFuncs[];
