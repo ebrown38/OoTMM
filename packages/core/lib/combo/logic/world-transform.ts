@@ -11,7 +11,7 @@ import { Location, isLocationOtherFairy, isLocationRenewable, locationData, loca
 import { ItemSharedDef, SharedItemGroups } from './shared';
 import { World } from './world';
 import { ItemProperties } from './item-properties';
-import { CLOCKS } from '../items/groups';
+import {CLOCKS, SHARED_SONG_EMPTINESS_NOTES} from '../items/groups';
 import { mustStartWithMasterSword } from '../settings/util';
 import { optimizeWorldStartingAndPool } from './world-optimizer';
 
@@ -467,6 +467,10 @@ export class LogicPassWorldTransform {
       items = [...items, ...ItemGroups.SONGS];
     }
 
+    if (settings.songs === 'notes') {
+      items = [...items, ...ItemGroups.SONG_NOTES];
+    }
+
     if (settings.dungeonRewardShuffle === 'anywhere' || settings.dungeonRewardShuffle === 'dungeonsLimited') {
       items = [...items, ...ItemGroups.DUNGEON_REWARDS];
     }
@@ -684,25 +688,52 @@ export class LogicPassWorldTransform {
     }
 
     if (settings.sharedSongEpona) {
-      this.replaceItem(Items.OOT_SONG_EPONA,   Items.SHARED_SONG_EPONA);
-      this.replaceItem(Items.MM_SONG_EPONA,    Items.SHARED_SONG_EPONA);
-      this.removeItem(Items.SHARED_SONG_EPONA, 1);
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.OOT_SONG_EPONA_NOTES);
+        this.removeItems(ItemGroups.MM_SONG_EPONA_NOTES);
+      } else {
+        this.replaceItem(Items.OOT_SONG_EPONA,   Items.SHARED_SONG_EPONA);
+        this.replaceItem(Items.MM_SONG_EPONA,    Items.SHARED_SONG_EPONA);
+        this.removeItem(Items.SHARED_SONG_EPONA, 1);
+      }
+    } else if(!settings.sharedSongEpona && settings.songs === 'notes') {
+      this.removeItems(ItemGroups.SHARED_SONG_EPONA_NOTES);
     }
 
     if (settings.sharedSongStorms) {
-      this.replaceItem(Items.OOT_SONG_STORMS,  Items.SHARED_SONG_STORMS);
-      this.replaceItem(Items.MM_SONG_STORMS,   Items.SHARED_SONG_STORMS);
-      this.removeItem(Items.SHARED_SONG_STORMS, 1);
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.OOT_SONG_STORMS_NOTES);
+        this.removeItems(ItemGroups.MM_SONG_STORMS_NOTES);
+      } else {
+        this.replaceItem(Items.OOT_SONG_STORMS,  Items.SHARED_SONG_STORMS);
+        this.replaceItem(Items.MM_SONG_STORMS,   Items.SHARED_SONG_STORMS);
+        this.removeItem(Items.SHARED_SONG_STORMS, 1);
+      }
+    } else if(!settings.sharedSongStorms && settings.songs === 'notes') {
+      this.removeItems(ItemGroups.SHARED_SONG_STORMS_NOTES);
     }
 
     if (settings.sharedSongTime) {
-      this.replaceItem(Items.OOT_SONG_TIME,    Items.SHARED_SONG_TIME);
-      this.replaceItem(Items.MM_SONG_TIME,     Items.SHARED_SONG_TIME);
-      this.removeItem(Items.SHARED_SONG_TIME, 1);
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.OOT_SONG_TIME_NOTES);
+        this.removeItems(ItemGroups.MM_SONG_TIME_NOTES);
+      } else {
+        this.replaceItem(Items.OOT_SONG_TIME,    Items.SHARED_SONG_TIME);
+        this.replaceItem(Items.MM_SONG_TIME,     Items.SHARED_SONG_TIME);
+        this.removeItem(Items.SHARED_SONG_TIME, 1);
+      }
+    } else if(!settings.sharedSongTime && settings.songs === 'notes') {
+      this.removeItems(ItemGroups.SHARED_SONG_TIME_NOTES);
     }
 
     if (settings.sharedSongSun && settings.sunSongMm) {
-      this.replaceItem(Items.OOT_SONG_SUN, Items.SHARED_SONG_SUN);
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.OOT_SONG_SUN_NOTES);
+      } else {
+        this.replaceItem(Items.OOT_SONG_SUN, Items.SHARED_SONG_SUN);
+      }
+    } else if (settings.sharedSongSun && !settings.sunSongMm) {
+      this.removeItems(ItemGroups.SHARED_SONG_SUN_NOTES);
     }
 
     if (settings.sharedNutsSticks) {
@@ -803,9 +834,20 @@ export class LogicPassWorldTransform {
     }
 
     if (settings.sharedSongElegy) {
-      this.replaceItem(Items.MM_SONG_EMPTINESS, Items.SHARED_SONG_EMPTINESS);
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.MM_SONG_EMPTINESS_NOTES);
+        this.removeItems(ItemGroups.OOT_SONG_EMPTINESS_NOTES);
+      } else {
+        this.replaceItem(Items.MM_SONG_EMPTINESS, Items.SHARED_SONG_EMPTINESS);
+      }
     } else if (settings.elegyOot) {
-      this.addItem(Items.OOT_SONG_EMPTINESS);
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.SHARED_SONG_EMPTINESS_NOTES);
+      } else {
+        this.addItem(Items.OOT_SONG_EMPTINESS);
+      }
+    } else if (!settings.elegyOot && settings.songs === 'notes') {
+      this.removeItems(ItemGroups.OOT_SONG_EMPTINESS_NOTES);
     }
 
     if (settings.sharedLens) {
@@ -1368,6 +1410,13 @@ export class LogicPassWorldTransform {
       this.addItem(Items.OOT_SWORD, 2);
     }
 
+    if (settings.songs === 'notes') {
+      this.removeItems(ItemGroups.SONGS);
+      this.addItems(ItemGroups.SONG_NOTES);
+    } else {
+      this.removeItems(ItemGroups.SONG_NOTES);
+    }
+
     /* Setup extra traps */
     this.setupExtraTraps();
 
@@ -1505,12 +1554,22 @@ export class LogicPassWorldTransform {
     }
 
     /* Handle MM Lullaby */
+    //TODO need to fix Goron Lullaby Half Notes breaking pathfinding
     if (settings.progressiveGoronLullaby === 'progressive') {
-      this.replaceItem(Items.MM_SONG_GORON, Items.MM_SONG_GORON_HALF);
+      if (settings.songs !== 'notes') {
+        this.replaceItem(Items.MM_SONG_GORON, Items.MM_SONG_GORON_HALF);
+      } else {
+        this.addItems(ItemGroups.MM_SONG_GORON_HALF_NOTES);
+        this.removeItems(ItemGroups.MM_SONG_GORON_NOTES);
+      }
     } else {
-      this.removeItem(Items.MM_SONG_GORON_HALF);
-      for (let i = 0; i < this.state.worlds.length; ++i) {
-        this.state.worlds[i].songLocations.delete('MM Goron Baby');
+      if (settings.songs === 'notes') {
+        this.removeItems(ItemGroups.MM_SONG_GORON_HALF_NOTES);
+      } else {
+        this.removeItem(Items.MM_SONG_GORON_HALF);
+        for (let i = 0; i < this.state.worlds.length; ++i) {
+          this.state.worlds[i].songLocations.delete('MM Goron Baby');
+        }
       }
     }
 

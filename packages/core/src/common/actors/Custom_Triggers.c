@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include <combo.h>
 #include <combo/item.h>
 #include <combo/net.h>
@@ -21,6 +23,38 @@ void CustomTriggers_CheckTriggerGame(Actor_CustomTriggers* this, PlayState* play
 
 Actor_CustomTriggers* gActorCustomTriggers;
 ComboTriggersData gComboTriggersData;
+TriggerArray gCustomTriggers;
+
+void CustomTriggers_AddTrigger(TriggerArray* triggers, int value) {
+    if (triggers->size >= triggers->capacity) {
+        size_t new_capacity = triggers->capacity * 2;
+        int* new_array = malloc(new_capacity * sizeof(int));
+        // Copy old data to the new memory
+        memcpy(new_array, triggers->array, triggers->size * sizeof(int));
+
+        // Free old memory and update pointer
+        free(triggers->array);
+        triggers->array = new_array;
+        triggers->capacity = new_capacity;
+    }
+
+    // Add the new trigger value
+    triggers->array[triggers->size++] = value;
+}
+
+void CustomTriggers_RemoveTrigger(TriggerArray* triggers, int value) {
+    size_t i;
+    for (i = 0; i < triggers->size; i++) {
+        if (triggers->array[i] == value) {
+            // Shift elements left
+            for (size_t j = i; j < triggers->size - 1; j++) {
+                triggers->array[j] = triggers->array[j + 1];
+            }
+            triggers->size--;
+            return;
+        }
+    }
+}
 
 int CustomTriggers_GiveItem(Actor_CustomTriggers* this, PlayState* play, const ComboItemQuery* q)
 {
@@ -82,6 +116,7 @@ int CustomTrigger_ItemSafe(Actor_CustomTriggers* this, PlayState* play)
 
 static void CustomTriggers_HandleTrigger(Actor_CustomTriggers* this, PlayState* play)
 {
+
     switch (gComboTriggersData.trigger)
     {
     case TRIGGER_GANON_BK:
@@ -97,6 +132,21 @@ static void CustomTriggers_HandleTrigger(Actor_CustomTriggers* this, PlayState* 
             gOotExtraFlags.triforceWin = 1;
             gComboTriggersData.trigger = TRIGGER_NONE;
             comboCreditWarp(play);
+        }
+        break;
+    case TRIGGER_OOT_SONG_STORMS:
+        if (CustomTrigger_ItemSafe(this, play) && CustomTriggers_GiveItemDirect(this, play, GI_OOT_SONG_STORMS))
+        {
+            gOotSave.info.inventory.quest.songStorms = 1;
+            gComboTriggersData.trigger = TRIGGER_NONE;
+        }
+        break;
+
+    case TRIGGER_OOT_SONG_TP_FOREST:
+        if (CustomTrigger_ItemSafe(this, play) && CustomTriggers_GiveItemDirect(this, play, GI_OOT_SONG_TP_FOREST))
+        {
+            gOotSave.info.inventory.quest.songTpForest = 1;
+            gComboTriggersData.trigger = TRIGGER_NONE;
         }
         break;
     }
@@ -151,6 +201,15 @@ static void CustomTriggers_Fini(Actor_CustomTriggers* this, PlayState* play)
     gActorCustomTriggers = NULL;
 }
 
+static void CustomTriggers_HandleBulkTrigger(Actor_CustomTriggers* this, PlayState* play, int trigger)
+{
+    gComboTriggersData.trigger = trigger;
+    CustomTriggers_HandleTrigger(this, play);
+    if (gComboTriggersData.trigger == TRIGGER_NONE) {
+        CustomTriggers_RemoveTrigger(&gCustomTriggers, trigger);
+    }
+}
+
 static void CustomTriggers_Update(Actor_CustomTriggers* this, PlayState* play)
 {
     /* Always be near link */
@@ -167,12 +226,26 @@ static void CustomTriggers_Update(Actor_CustomTriggers* this, PlayState* play)
         CustomTriggers_CheckTrigger(this, play);
     if (gComboTriggersData.trigger != TRIGGER_NONE)
         CustomTriggers_HandleTrigger(this, play);
+
+    if (gCustomTriggers.size > 0) {
+        int trigger = gCustomTriggers.array[0];
+        CustomTriggers_HandleBulkTrigger(this, play, trigger);
+    }
+}
+
+static void CustomTriggers_InitTriggerArray(TriggerArray* triggers, size_t initialCapacity) {
+
+    triggers->array = malloc(initialCapacity * sizeof(int));
+    triggers->size = 0;
+    triggers->capacity = initialCapacity;
 }
 
 void CustomTriggers_Spawn(PlayState* play)
 {
     if (gActorCustomTriggers)
         return;
+
+    CustomTriggers_InitTriggerArray(&gCustomTriggers, 1);
 
     bzero(&gComboTriggersData, sizeof(gComboTriggersData));
 
@@ -185,6 +258,7 @@ void CustomTriggers_Spawn(PlayState* play)
         0
     );
 }
+
 
 void CustomTriggers_Draw(Actor* this, PlayState* play)
 {
